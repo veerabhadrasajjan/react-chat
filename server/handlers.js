@@ -16,6 +16,17 @@ function makeHandleEvent(client, clientManager, chatroomManager) {
   }
 
   function ensureValidChatroom(chatroomName) {
+    let names = chatroomName.split('_');
+
+    let res = chatroomManager.getChatroomByName(chatroomName);
+    if (!res) {
+      chatroomName = names[1] + "_" + names[0];
+      res = chatroomManager.getChatroomByName(chatroomName);
+      if (!res) {
+        chatroomManager.addChatrooms(chatroomName);
+      }
+
+    }
     return ensureExists(
       () => chatroomManager.getChatroomByName(chatroomName),
       `invalid chatroom name: ${chatroomName}`
@@ -55,6 +66,9 @@ module.exports = function (client, clientManager, chatroomManager) {
 
     const user = clientManager.getUserByName(userName)
     clientManager.registerClient(client, user)
+
+    // notify other clients in clientManager
+    clientManager.broadcastMessage()
 
     return callback(null, user)
   }

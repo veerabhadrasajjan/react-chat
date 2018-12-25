@@ -40,6 +40,15 @@ export default function () {
     socket.emit('availableUsers', null, cb)
   }
 
+  function getAllOnlineUser(cb) {
+    socket.emit('registeredUsers', null, cb)
+  }
+
+  function registeredUsers(cb) {
+    socket.on('registeredUsers', cb)
+  }
+
+
   function registerUserName(name) {
     socket.emit('setUsername', name)
   }
@@ -62,6 +71,8 @@ export default function () {
     sendMessage,
     messageHistory,
     register,
+    registeredUsers,
+    getAllOnlineUser,
     join,
     leave,
     message,

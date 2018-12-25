@@ -4,87 +4,11 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 
 import MainLayout from './MainLayout';
+import Home from './Home';
+import Loader from './Loader';
+import UserSelection from './UserSelection';
+import Chatroom from './Chatroom';
 import socket from './socket';
-
-import styled from 'styled-components'
-import RaisedButton from 'material-ui/RaisedButton';
-import TextField from 'material-ui/TextField';
-import FloatingActionButton from 'material-ui/FloatingActionButton';
-import FontIcon from 'material-ui/FontIcon';
-import Avatar from 'material-ui/Avatar';
-import Divider from 'material-ui/Divider';
-import { List, ListItem } from 'material-ui/List';
-
-import Overlay from './Overlay';
-
-const ChatWindow = styled.div`
-  position: relative;
-  display: inline-flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  height: 100%;
-  width: 420px;
-  box-sizing: border-box;
-`
-const ChatPanel = styled.div`
-  position: relative;
-  display: inline-flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  height: 100%;
-  width: 100%;
-  box-sizing: border-box;
-  z-index: 1;
-`
-
-const Header = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0 20px ;
-  z-index: 1;
-  color: #fafafa !important;
-  border-bottom: 1px solid;
-`
-
-const Title = styled.p`
-  text-align: center;
-  font-size: 24px;
-`
-
-const NoDots = styled.div`
-  hr {
-    visibility: hidden;
-  }
-`
-
-const OutputText = styled.div`
-  white-space: normal !important;
-  word-break: break-all !important;
-  overflow: initial !important;
-  width: 100%;
-  height: auto !important;
-  color: #fafafa !important;
-`
-
-const InputPanel = styled.div`
-  display: flex;
-  align-items: center;
-  padding: 20px;
-  align-self: center;
-  border-top: 1px solid #fafafa;
-`
-
-const ChatroomImage = styled.img`
-  position: absolute;
-  top: 0;
-  width: 100%;
-`
-
-const Scrollable = styled.div`
-  height: 100%;
-  overflow: auto;
-`
 
 injectTapEventPlugin()
 
@@ -97,67 +21,112 @@ export default class Root extends React.Component {
       isRegisterInProcess: false,
       client: socket(),
       chatrooms: null,
-      messages:[]
+      chatHistory: []
     }
-    this.onUserConnected = this.onUserConnected.bind(this)
-    this.onHandalInput = this.onHandalInput.bind(this)
-    this.userMessageHistory = this.userMessageHistory.bind(this)
-    this.selectedUser = this.selectedUser.bind(this)
-    this.sendMessage = this.sendMessage.bind(this)
-    this.onInput = this.onInput.bind(this)
+
+    this.onEnterChatroom = this.onEnterChatroom.bind(this)
+    this.onLeaveChatroom = this.onLeaveChatroom.bind(this)
+    this.getChatrooms = this.getChatrooms.bind(this)
+    this.register = this.register.bind(this)
+    this.renderUserSelectionOrRedirect = this.renderUserSelectionOrRedirect.bind(this)
+    this.registeredUsers = this.registeredUsers.bind(this)
+    this.getAllOnlineUser = this.getAllOnlineUser.bind(this)
+    this.getChatrooms();
+    this.getAllOnlineUser()
+  }
+
+  onEnterChatroom(user) {
+
+    if (!this.state.user)
+      return alert('Please register your self')
+
+    let chatroomName = user + "_" + this.state.user.name;
+    this.setState({ selectedUser: user, selectedRoom: chatroomName })
+    return this.state.client.join(chatroomName, (err, chatHistory) => {
+      if (err)
+        return console.error(err)
+      this.setState({ chatHistory: chatHistory })
+    })
+  }
+
+  onLeaveChatroom(chatroomName, onLeaveSuccess) {
+    this.state.client.leave(chatroomName, (err) => {
+      if (err)
+        return console.error(err)
+      return onLeaveSuccess()
+    })
+  }
+
+  getChatrooms() {
+    this.state.client.getChatrooms((err, chatrooms) => {
+      this.setState({ chatrooms })
+    })
+  }
 
 
+
+  register(name) {
+    const onRegisterResponse = user => this.setState({ isRegisterInProcess: false, user })
+    this.setState({ isRegisterInProcess: true })
+    this.state.client.register(name, (err, user) => {
+      if (err) return onRegisterResponse(null)
+      return onRegisterResponse(user)
+    })
+  }
+
+  getAllOnlineUser() {
+    this.state.client.getAllOnlineUser((err, users) => {
+      this.setState({ OnlineUsers: users })
+    })
   }
 
   componentDidMount() {
-    this.state.client.allUsers(this.onUserConnected);
-    this.state.client.messageHistory(this.userMessageHistory)
+    this.state.client.registeredUsers(this.registeredUsers);
   }
 
-  onHandalInput(e) {
-    if (e.target.value) {
-      this.setState({ userName: e.target.value });
-      localStorage.setItem("userName", e.target.value)
+  registeredUsers(users) {
+    this.setState({ OnlineUsers: users })
+  }
+
+  renderUserSelectionOrRedirect(renderUserSelection) {
+    if (this.state.user) {
+      return <Redirect to="/" />
     }
+
+    return this.state.isRegisterInProcess
+      ? <Loader />
+      : renderUserSelection()
   }
 
-  registerUserName() {
-    if (this.state.userName) {
-      this.state.client.registerUserName(this.state.userName)
+  renderChatroomOrRedirect(chatroom) {
+    if (!this.state.user) {
+      return <Redirect to="/" />
     }
-  }
 
+    const { chatHistory } = this.state
 
-  onUserConnected(user) {
-    console.log('onUserConnected:', user)
-    this.setState({ allUsers: user })
-  }
-  
-  selectedUser(user){
-    this.setState({ selectedUser: user })
-  }
-
-  userMessageHistory(message) {
-    console.log('message:', message)
-    let messages = this.state.messages;
-    messages.push(message)
-    this.setState({ messages: messages })
-  }
-
-  onInput(e) {
-    this.setState({
-      input: e.target.value
-    })
-  }
-  
-  sendMessage(){
-    if (!this.state.input)
-      return
-    this.state.client.sendMessage(this.state.input , this.state.selectedUser);
-    let messages = this.state.messages;
-    messages.push({ userId: this.state.client.id, to_user: this.state.selectedUser, message: this.state.input })
-    this.setState({ messages: messages, input:'' })
-    
+    return (
+      <Chatroom
+        chatroom={chatroom}
+        chatHistory={chatHistory}
+        user={this.state.user}
+        onLeave={
+          () => this.onLeaveChatroom(
+            chatroom.name,
+            () => this.setState({ selectedUser: null })
+          )
+        }
+        onSendMessage={
+          (message, cb) => this.state.client.message(
+            chatroom.name,
+            message,
+            cb
+          )
+        }
+        registerHandler={this.state.client.registerHandler}
+        unregisterHandler={this.state.client.unregisterHandler}
+      />
+    )
   }
 
   render() {
@@ -167,107 +136,40 @@ export default class Root extends React.Component {
           <MainLayout
             user={this.state.user}
           >
-            <div>
-              <input type="text" onChange={(e) => { this.onHandalInput(e) }} />
-              <button type="button" name="button" onClick={(e) => { this.registerUserName(e) }}>
-                Let me chat!
-              </button>
-            </div>
 
 
             <div>
               {
-                this.state.allUsers && this.state.allUsers.map((user, index) => {
-                  return <div className="user-list" key={index} onClick={(e)=>{this.selectedUser(user)}}>{user}</div>
+                this.state.OnlineUsers && this.state.OnlineUsers.map((user, index) => {
+                  return <div className="user-list" key={index} onClick={(e) => { this.onEnterChatroom(user) }}>{user}</div>
                 })
               }
             </div>
 
-
-
-            <div style={{ height: '100%' }}>
-              <ChatWindow>
-                <Header>
-                  <Title>
-                    {this.state.selectedUser}
-                  </Title>
-                  <RaisedButton
-                    primary
-                    icon={
-                      <FontIcon
-                        style={{ fontSize: 24 }}
-                        className="material-icons"
-                      >
-                        {'close'}
-                      </FontIcon>
+            {
+              <Switch>
+                <Route
+                  exact
+                  path="/user"
+                  render={
+                    (props) => {
+                      const toHome = () => props.history.push('/')
+                      return this.renderUserSelectionOrRedirect(() => (
+                        <UserSelection
+                          getAvailableUsers={this.state.client.getAvailableUsers}
+                          close={toHome}
+                          register={name => this.register(name, toHome)}
+                        />
+                      ))
                     }
-                    onClick={(e)=>{this.selectedUser('')}}
-                  />
-                </Header>
-                <ChatroomImage
-                  src={this.props.image}
-                  alt=""
+                  }
                 />
-                <ChatPanel>
-                  <Scrollable innerRef={(panel) => { this.panel = panel; }}>
-                    <List>
-                      {
-                        this.state.messages && this.state.messages.map(
-                          ({ image, to_user, message, event }, i) => [
-                            <NoDots>
-                              <ListItem
-                                key={i}
-                                style={{ color: '#fafafa' }}
-                                leftAvatar={<Avatar src={image} />}
-                                primaryText={`${to_user} ${event || ''}`}
-                                secondaryText={
-                                  message &&
-                                  <OutputText>
-                                    {message}
-                                  </OutputText>
-                                }
-                              />
-                            </NoDots>,
-                            <Divider inset />
-                          ]
-                        )
-                      }
-                    </List>
-                  </Scrollable>
-                  <InputPanel>
-                    <TextField
-                      textareaStyle={{ color: '#fafafa' }}
-                      hintStyle={{ color: '#fafafa' }}
-                      floatingLabelStyle={{ color: '#fafafa' }}
-                      hintText="Enter a message."
-                      floatingLabelText="Enter a message."
-                      multiLine
-                      rows={4}
-                      rowsMax={4}
-                      onChange={this.onInput}
-                      value={this.state.input}
-                      onKeyPress={e => (e.key === 'Enter' ? this.sendMessage() : null)}
-                    />
-                    <FloatingActionButton
-                      onClick={this.sendMessage}
-                      style={{ marginLeft: 20 }}
-                    >
-                      <FontIcon
-                        style={{ fontSize: 32 }}
-                        className="material-icons"
-                      >
-                        {'chat_bubble_outline'}
-                      </FontIcon>
-                    </FloatingActionButton>
-                  </InputPanel>
-                </ChatPanel>
-                <Overlay
-                  opacity={0.6}
-                  background="#111111"
-                />
-              </ChatWindow>
-            </div>
+              </Switch>
+            }
 
+            {
+              this.state.selectedUser && this.renderChatroomOrRedirect({ name: this.state.selectedRoom })
+            }
 
 
           </MainLayout>

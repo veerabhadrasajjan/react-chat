@@ -4,6 +4,16 @@ module.exports = function () {
   // mapping of all connected clients
   const clients = new Map()
 
+  function broadcastMessage() {
+    const usersTaken = Array.from(clients.values())
+    .filter(c => c.user)
+    .map(c => c.user.name)
+
+    clients.forEach(m => {
+      m.client.emit('registeredUsers', usersTaken)
+    })
+  }
+
   function addClient(client) {
     clients.set(client.id, { client })
   }
@@ -47,6 +57,7 @@ module.exports = function () {
 
   return {
     addClient,
+    broadcastMessage,
     registerClient,
     removeClient,
     getAvailableUsers,

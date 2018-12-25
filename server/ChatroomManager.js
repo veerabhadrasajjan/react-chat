@@ -14,6 +14,11 @@ module.exports = function () {
     chatrooms.forEach(c => c.removeUser(client))
   }
 
+  function addChatrooms(name) {
+    let room = { name: name, image: '' };
+    chatrooms.set(room.name, Chatroom(room))
+  }
+
   function getChatroomByName(chatroomName) {
     return chatrooms.get(chatroomName)
   }
@@ -24,6 +29,7 @@ module.exports = function () {
 
   return {
     removeClient,
+    addChatrooms,
     getChatroomByName,
     serializeChatrooms
   }

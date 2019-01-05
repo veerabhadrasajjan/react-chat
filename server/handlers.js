@@ -45,8 +45,13 @@ function makeHandleEvent(client, clientManager, chatroomManager) {
     return ensureValidChatroomAndUserSelected(chatroomName)
       .then(function ({ chatroom, user }) {
         // append event to chat history
+        let obj = { ...createEntry() };
+
         const entry = { user, ...createEntry() }
-        chatroom.addEntry(entry)
+        if (obj.message) {
+          chatroom.addEntry(entry)
+        }
+
 
         // notify other clients in chatroom
         chatroom.broadcastMessage({ chat: chatroomName, ...entry })
@@ -108,6 +113,16 @@ module.exports = function (client, clientManager, chatroomManager) {
       .catch(callback)
   }
 
+  function handleTyping({ chatroomName, typing } = {}, callback) {
+    const createEntry = () => ({ typing })
+
+    handleEvent(chatroomName, createEntry)
+      .then(() => callback(null))
+      .catch(callback)
+  }
+
+
+
   function handleGetChatrooms(_, callback) {
     return callback(null, chatroomManager.serializeChatrooms())
   }
@@ -132,6 +147,7 @@ module.exports = function (client, clientManager, chatroomManager) {
     handleJoin,
     handleLeave,
     handleMessage,
+    handleTyping,
     handleGetChatrooms,
     handleGetAvailableUsers,
     handleDisconnect,

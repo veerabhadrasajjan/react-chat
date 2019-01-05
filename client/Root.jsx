@@ -123,6 +123,13 @@ export default class Root extends React.Component {
             cb
           )
         }
+        onTypingMessage ={
+          (isTyping, cb) => this.state.client.typing(
+            chatroom.name,
+            isTyping,
+            cb
+          )
+        }
         registerHandler={this.state.client.registerHandler}
         unregisterHandler={this.state.client.unregisterHandler}
       />

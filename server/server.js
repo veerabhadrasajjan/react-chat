@@ -52,6 +52,7 @@ io.on('connection', function (client) {
     handleJoin,
     handleLeave,
     handleMessage,
+    handleTyping,
     handleGetChatrooms,
     handleGetAvailableUsers,
     handleDisconnect,
@@ -68,6 +69,8 @@ io.on('connection', function (client) {
   client.on('leave', handleLeave)
 
   client.on('message', handleMessage)
+
+  client.on('typing', handleTyping)
 
   client.on('chatrooms', handleGetChatrooms)
 

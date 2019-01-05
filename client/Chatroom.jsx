@@ -79,6 +79,10 @@ const Scrollable = styled.div`
   overflow: auto;
 `
 
+const Typing = styled.div`
+  color: #ffffff !important;
+`
+
 export default class Chatroom extends React.Component {
   constructor(props, context) {
     super(props, context)
@@ -87,7 +91,8 @@ export default class Chatroom extends React.Component {
 
     this.state = {
       chatHistory,
-      input: ''
+      input: '',
+      isTyping: false
     }
 
     this.onInput = this.onInput.bind(this)
@@ -95,6 +100,10 @@ export default class Chatroom extends React.Component {
     this.onMessageReceived = this.onMessageReceived.bind(this)
     this.updateChatHistory = this.updateChatHistory.bind(this)
     this.scrollChatToBottom = this.scrollChatToBottom.bind(this)
+
+    this.resetStopTypingTimeout = this.resetStopTypingTimeout.bind(this)
+    this.setTypingState = this.setTypingState.bind(this)
+    this.onChange = this.onChange.bind(this)
   }
 
   componentDidMount() {
@@ -114,12 +123,66 @@ export default class Chatroom extends React.Component {
     this.setState({
       input: e.target.value
     })
+    this.onChange(e)
   }
+
+  resetStopTypingTimeout() {
+    const { stopTypingTimeout, setTypingState } = this;
+
+    if (stopTypingTimeout) {
+      clearTimeout(stopTypingTimeout);
+    }
+    this.stopTypingTimeout = setTimeout(() => {
+      this.isTyping = false;
+      setTypingState(this.isTyping);
+      this.stopTypingTimeout = undefined;
+    }, 3000);
+  };
+
+  setTypingState(isTyping) {
+    this.props.onTypingMessage(isTyping, (err) => {
+      if (err)
+        return console.error(err)
+    })
+  };
+
+  onChange(e) {
+    const { resetStopTypingTimeout, setTypingState } = this;
+
+    const isInputEmpty = (e.target.value.length === 0);
+    // If the input isn't empty, and isTyping is false, update the state
+    if (isInputEmpty === false) {
+      // If the user wasn't typing before, and now the event has fired,
+      // it means they are now typing
+      if (this.isTyping === false) {
+        this.isTyping = true;
+        setTypingState(this.isTyping);
+        // Start a 3 second countdown to see if they type within that window
+        resetStopTypingTimeout();
+      } else {
+        // If the user typed another character, reset the timeout
+        resetStopTypingTimeout();
+      }
+    } else {
+      if (this.isTyping === true) {
+        // If the user was typing, but now the input is empty,
+        // it means they've deleted everything and that triggered
+        // an onChange event.  For this, we state they have stopped typing
+        this.isTyping = false;
+        setTypingState(this.isTyping);
+        // Stop the timeout, if there is one running
+        if (this.stopTypingTimeout) {
+          clearTimeout(this.stopTypingTimeout);
+          this.stopTypingTimeout = undefined;
+        }
+      }
+    }
+  };
+
 
   onSendMessage() {
     if (!this.state.input)
       return
-
     this.props.onSendMessage(this.state.input, (err) => {
       if (err)
         return console.error(err)
@@ -130,7 +193,13 @@ export default class Chatroom extends React.Component {
 
   onMessageReceived(entry) {
     console.log('onMessageReceived:', entry)
-    this.updateChatHistory(entry)
+    if (entry.typing === true || entry.typing === false) {
+      this.setState({ isTyping: entry.typing })
+    }
+    else {
+      this.updateChatHistory(entry)
+    }
+
   }
 
   updateChatHistory(entry) {
@@ -147,7 +216,7 @@ export default class Chatroom extends React.Component {
         <ChatWindow>
           <Header>
             <Title>
-              { this.props.chatroom.name }
+              {this.props.chatroom.name}
             </Title>
             <RaisedButton
               primary
@@ -181,7 +250,7 @@ export default class Chatroom extends React.Component {
                           secondaryText={
                             message &&
                             <OutputText>
-                              { message }
+                              {message}
                             </OutputText>
                           }
                         />
@@ -192,6 +261,7 @@ export default class Chatroom extends React.Component {
                 }
               </List>
             </Scrollable>
+            {this.state.isTyping && <Typing>Typing...</Typing>}
             <InputPanel>
               <TextField
                 textareaStyle={{ color: '#fafafa' }}

@@ -32,6 +32,10 @@ export default function () {
     socket.emit('message', { chatroomName, message: msg }, cb)
   }
 
+  function typing(chatroomName, typing, cb) {
+    socket.emit('typing', { chatroomName, typing: typing }, cb)
+  }
+
   function getChatrooms(cb) {
     socket.emit('chatrooms', null, cb)
   }
@@ -76,6 +80,7 @@ export default function () {
     join,
     leave,
     message,
+    typing,
     getChatrooms,
     getAvailableUsers,
     registerHandler,
